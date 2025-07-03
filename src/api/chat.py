@@ -31,11 +31,6 @@ async def chat(request: ChatRequest, settings: Settings = Depends(get_settings))
     """
     Send a message to the LLM model and get a response.
     """
-    if not settings.openai_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="OpenAI API key not configured"
-        )
     
     try:
         # Get or create a chat session
