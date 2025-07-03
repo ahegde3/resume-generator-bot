@@ -22,6 +22,9 @@ langchain-openai = "^0.3.27"
 langchain-google-vertexai = "^2.0.27"
 langchain-anthropic = "^0.3.16"
 langchain-google-genai = "^2.1.6"
+pypdf2 = "^3.0.1"
+python-docx = "^1.2.0"
+aiofiles = "^24.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

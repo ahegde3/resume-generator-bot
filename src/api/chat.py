@@ -1,15 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import openai
 from src.utils.config import get_settings, Settings
 from src.utils.llm import llm_handler
 from src.models.chat import Message, ChatSession
+import json
+import os
+from pathlib import Path
 
 router = APIRouter(tags=["chat"])
 
 # In-memory storage for chat sessions
 chat_sessions = {}
+
+# Create uploads directory if it doesn't exist
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 class MessageRequest(BaseModel):
     role: str
@@ -25,6 +32,12 @@ class ChatResponse(BaseModel):
     message: Dict[str, str]
     usage: Dict[str, int]
     session_id: str
+
+class FileUploadResponse(BaseModel):
+    filename: str
+    file_id: str
+    session_id: str
+    message: str
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, settings: Settings = Depends(get_settings)):
@@ -73,6 +86,87 @@ async def chat(request: ChatRequest, settings: Settings = Depends(get_settings))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error communicating with LLM: {str(e)}"
+        )
+
+@router.post("/upload", response_model=FileUploadResponse)
+async def upload_file(
+    file: UploadFile = File(...),
+    session_id: Optional[str] = Form(None),
+    message: Optional[str] = Form(""),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Upload a file and optionally process it with the LLM.
+    """
+    try:
+        # Get or create a chat session
+        if session_id and session_id in chat_sessions:
+            chat_session = chat_sessions[session_id]
+        else:
+            chat_session = ChatSession()
+            chat_sessions[chat_session.id] = chat_session
+            session_id = chat_session.id
+        
+        # Save the file
+        file_id = f"{chat_session.id}_{file.filename}"
+        file_path = UPLOAD_DIR / file_id
+        
+        # Write file content
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+            await file.seek(0)  # Reset file pointer for potential reuse
+        
+        # Add file reference to the chat session
+        file_message = f"Uploaded file: {file.filename}"
+        if message:
+            file_message = f"{message}\n\nFile: {file.filename}"
+        
+        # Store the file in the session
+        chat_session.add_file(file.filename, str(file_path), message)
+        
+        # Add a user message about the file
+        chat_session.add_message("user", file_message)
+        
+        # Process the file with the LLM if there's a message
+        if message:
+            # Get file content based on type
+            file_content = await llm_handler.extract_file_content(file_path)
+            
+            # Create a message with the file content
+            prompt = f"{message}\n\nFile content:\n{file_content}"
+            
+            # Get LLM response
+            message_history = chat_session.get_message_history()
+            
+            # Replace the last user message with the prompt that includes file content
+            if message_history and message_history[-1]["role"] == "user":
+                message_history[-1]["content"] = prompt
+            
+            # Get LLM response
+            response = await llm_handler.get_chat_completion(
+                messages=message_history,
+                max_tokens=settings.max_tokens_default,
+                temperature=settings.temperature_default
+            )
+            
+            # Add the assistant's response to the session
+            chat_session.add_message(
+                response["message"]["role"], 
+                response["message"]["content"]
+            )
+        
+        return FileUploadResponse(
+            filename=file.filename,
+            file_id=file_id,
+            session_id=session_id,
+            message="File uploaded successfully"
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing file: {str(e)}"
         )
 
 @router.get("/sessions/{session_id}", response_model=ChatSession)

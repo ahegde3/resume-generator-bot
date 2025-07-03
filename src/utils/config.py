@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     anthropic_model_name: str = os.getenv("ANTHROPIC_MODEL_NAME", "claude-3-opus-20240229")
     
+    # Default parameter settings
+    max_tokens_default: int = int(os.getenv("MAX_TOKENS_DEFAULT", "1000"))
+    temperature_default: float = float(os.getenv("TEMPERATURE_DEFAULT", "0.7"))
+    
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8"

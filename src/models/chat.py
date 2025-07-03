@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 import uuid
 
@@ -11,12 +11,23 @@ class Message(BaseModel):
     content: str
     timestamp: datetime = Field(default_factory=datetime.now)
 
+class FileAttachment(BaseModel):
+    """
+    Model for a file attachment.
+    """
+    filename: str
+    file_path: str
+    message: Optional[str] = None
+    upload_time: datetime = Field(default_factory=datetime.now)
+    file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
 class ChatSession(BaseModel):
     """
     Model for a chat session.
     """
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     messages: List[Message] = []
+    files: List[FileAttachment] = []
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     title: Optional[str] = None
@@ -29,6 +40,19 @@ class ChatSession(BaseModel):
         self.messages.append(message)
         self.updated_at = datetime.now()
         return message
+    
+    def add_file(self, filename: str, file_path: str, message: Optional[str] = None) -> FileAttachment:
+        """
+        Add a file attachment to the chat session.
+        """
+        file_attachment = FileAttachment(
+            filename=filename,
+            file_path=file_path,
+            message=message
+        )
+        self.files.append(file_attachment)
+        self.updated_at = datetime.now()
+        return file_attachment
     
     def get_message_history(self) -> List[dict]:
         """
