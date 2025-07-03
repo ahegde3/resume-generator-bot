@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from datetime import datetime
 import uuid
+from src.utils.prompts import get_system_prompt
 
 class Message(BaseModel):
     """
@@ -31,6 +32,7 @@ class ChatSession(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     title: Optional[str] = None
+    prompt_type: str = "default"
 
     def add_message(self, role: str, content: str) -> Message:
         """
@@ -56,6 +58,16 @@ class ChatSession(BaseModel):
     
     def get_message_history(self) -> List[dict]:
         """
-        Get the message history in a format suitable for the OpenAI API.
+        Get the message history in a format suitable for the LLM API.
+        Includes system prompt based on the prompt_type.
         """
-        return [{"role": msg.role, "content": msg.content} for msg in self.messages] 
+        history = []
+        
+        # Add system message based on prompt_type
+        system_prompt = get_system_prompt(self.prompt_type)
+        history.append({"role": "system", "content": system_prompt})
+            
+        # Add regular messages
+        history.extend([{"role": msg.role, "content": msg.content} for msg in self.messages])
+        
+        return history 

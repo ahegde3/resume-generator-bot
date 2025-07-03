@@ -5,6 +5,7 @@ import openai
 from src.utils.config import get_settings, Settings
 from src.utils.llm import llm_handler
 from src.models.chat import Message, ChatSession
+from src.utils.prompts import get_system_prompt, SYSTEM_PROMPTS
 import json
 import os
 from pathlib import Path
@@ -27,6 +28,7 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     max_tokens: Optional[int] = 1000
     temperature: Optional[float] = 0.7
+    prompt_type: Optional[str] = None
 
 class ChatResponse(BaseModel):
     message: Dict[str, str]
@@ -37,6 +39,14 @@ class FileUploadResponse(BaseModel):
     filename: str
     file_id: str
     session_id: str
+    message: str
+
+class PromptTypeRequest(BaseModel):
+    prompt_type: str
+
+class PromptTypeResponse(BaseModel):
+    session_id: str
+    prompt_type: str
     message: str
 
 @router.post("/chat", response_model=ChatResponse)
@@ -50,8 +60,14 @@ async def chat(request: ChatRequest, settings: Settings = Depends(get_settings))
         session_id = request.session_id
         if session_id and session_id in chat_sessions:
             chat_session = chat_sessions[session_id]
+            
+            # Update prompt type if provided in the request
+            if request.prompt_type is not None:
+                chat_session.prompt_type = request.prompt_type
         else:
             chat_session = ChatSession()
+            # Set prompt type from request or use default
+            chat_session.prompt_type = request.prompt_type or settings.default_prompt_type
             chat_sessions[chat_session.id] = chat_session
             session_id = chat_session.id
         
@@ -88,11 +104,40 @@ async def chat(request: ChatRequest, settings: Settings = Depends(get_settings))
             detail=f"Error communicating with LLM: {str(e)}"
         )
 
+@router.post("/sessions/{session_id}/prompt-type", response_model=PromptTypeResponse)
+async def update_prompt_type(session_id: str, request: PromptTypeRequest):
+    """
+    Update the prompt type for an existing session.
+    """
+    if session_id not in chat_sessions:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Chat session with ID {session_id} not found"
+        )
+    
+    # Validate prompt type
+    if request.prompt_type not in SYSTEM_PROMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid prompt type: {request.prompt_type}. Available types: {', '.join(SYSTEM_PROMPTS.keys())}"
+        )
+    
+    # Update prompt type
+    chat_session = chat_sessions[session_id]
+    chat_session.prompt_type = request.prompt_type
+    
+    return PromptTypeResponse(
+        session_id=session_id,
+        prompt_type=request.prompt_type,
+        message=f"Prompt type updated to '{request.prompt_type}'"
+    )
+
 @router.post("/upload", response_model=FileUploadResponse)
 async def upload_file(
     file: UploadFile = File(...),
     session_id: Optional[str] = Form(None),
     message: Optional[str] = Form(""),
+    prompt_type: Optional[str] = Form(None),
     settings: Settings = Depends(get_settings)
 ):
     """
@@ -102,8 +147,13 @@ async def upload_file(
         # Get or create a chat session
         if session_id and session_id in chat_sessions:
             chat_session = chat_sessions[session_id]
+            # Update prompt type if provided
+            if prompt_type:
+                chat_session.prompt_type = prompt_type
         else:
             chat_session = ChatSession()
+            # Set prompt type from request or use default
+            chat_session.prompt_type = prompt_type or settings.default_prompt_type
             chat_sessions[chat_session.id] = chat_session
             session_id = chat_session.id
         
@@ -180,4 +230,11 @@ async def get_session(session_id: str):
             detail=f"Chat session with ID {session_id} not found"
         )
     
-    return chat_sessions[session_id] 
+    return chat_sessions[session_id]
+
+@router.get("/prompt-types", response_model=Dict[str, str])
+async def get_prompt_types():
+    """
+    Get all available prompt types.
+    """
+    return SYSTEM_PROMPTS 

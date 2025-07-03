@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     max_tokens_default: int = int(os.getenv("MAX_TOKENS_DEFAULT", "1000"))
     temperature_default: float = float(os.getenv("TEMPERATURE_DEFAULT", "0.7"))
     
+    # System prompt settings
+    default_prompt_type: str = os.getenv("DEFAULT_PROMPT_TYPE", "default")
+    
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8"
