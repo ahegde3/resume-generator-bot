@@ -180,6 +180,7 @@ async def upload_file(
         
         # Process the file with the LLM if there's a message
         if message:
+            print(f"Processing file: {file.filename}")
             # Get file content based on type
             file_content = await llm_handler.extract_file_content(file_path)
             
