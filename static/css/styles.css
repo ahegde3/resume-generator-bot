@@ -1,0 +1,85 @@
+/* Additional styles for the chat application */
+.chat-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.chat-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.chat-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Animation for messages */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-message,
+.bot-message {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Code block styling */
+pre {
+  background-color: #282c34;
+  color: #abb2bf;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-family: "Courier New", Courier, monospace;
+  margin: 1rem 0;
+}
+
+code {
+  font-family: "Courier New", Courier, monospace;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+}
+
+/* Markdown styling */
+.bot-message h1,
+.bot-message h2,
+.bot-message h3,
+.bot-message h4,
+.bot-message h5,
+.bot-message h6 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.bot-message ul,
+.bot-message ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.bot-message ul li,
+.bot-message ol li {
+  margin-bottom: 0.25rem;
+}
+
+.bot-message p {
+  margin-bottom: 0.75rem;
+}
+
+.bot-message a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
